@@ -46,12 +46,7 @@
     <Compile Include="Rectangle.cs" />
     <Compile Include="PathFinder.cs" />
     <Compile Include="Test\PathFinderTest.cs" />
-    <Compile Include="ZoneGenerator.cs" />
-    <Compile Include="ZoneRecommender.cs" />
-    <Compile Include="Map.cs" />
-    <Compile Include="MapNode.cs" />
-    <Compile Include="MapCursor.cs" />
-    <Compile Include="Cursor.cs" />
+    <Compile Include="PathNode.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -73,6 +68,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Arial.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="checkerboard.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

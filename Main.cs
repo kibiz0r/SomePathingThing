@@ -15,113 +15,6 @@ namespace SomePathingThing
             Allegro.RunMain(AllegroMain);
         }
 
-        public static IEnumerable<Rectangle> TopLeftCandidate(float[][] map, int targetX, int targetY)
-        {
-            var target = map[targetY][targetX];
-            var startX = targetX;
-            var startY = targetY;
-            var endX = startX;
-            var endY = startY;
-            for (; endX < map[startY].Length; endX++)
-            {
-                if (map[startY][endX] != target)
-                {
-                    break;
-                }
-                yield return new Rectangle(startX, startY, endX, endY);
-            }
-            for (; endY < map.Length; endY++)
-            {
-                var done = false;
-                for (var x = 0; x < map[endY].Length; x++)
-                {
-                    if (map[endY][x] != target)
-                    {
-                        done = true;
-                        break;
-                    }
-                }
-                if (done)
-                {
-                    break;
-                }
-                yield return new Rectangle(startX, startY, endX, endY);
-            }
-            yield return new Rectangle(startX, startY, endX, endY);
-        }
-
-        public static IEnumerable<Rectangle> TopRightCandidate(float[][] map, int targetX, int targetY)
-        {
-            var target = map[targetY][targetX];
-            var startX = targetX;
-            var startY = targetY;
-            var endX = startX;
-            var endY = startY;
-            for (; endY < map.Length; endY++)
-            {
-                if (map[endY][startX] != target)
-                {
-                    break;
-                }
-                yield return new Rectangle(startX, startY, endX, endY);
-            }
-            for (; startX >= 0; startX--)
-            {
-                var done = false;
-                for (var y = startY; y < endY; y++)
-                {
-                    if (map[y][startX] != target)
-                    {
-                        done = true;
-                        break;
-                    }
-                }
-                if (done)
-                {
-                    break;
-                }
-                yield return new Rectangle(startX, startY, endX, endY);
-            }
-            yield return new Rectangle(startX, startY, endX, endY);
-        }
-
-        public static IEnumerable<Rectangle> BottomRightCandidate(float[][] map, int targetX, int targetY)
-        {
-            var target = map[targetY][targetX];
-            var startX = targetX;
-            var startY = targetY;
-            var endX = startX;
-            var endY = startY;
-            for (; startX >= 0; startX--)
-            {
-                if (map[endY][startX] != target)
-                {
-                    break;
-                }
-                yield return new Rectangle(startX, startY, endX, endY);
-            }
-            startX++;
-            for (; startY > 0; startY--)
-            {
-                var done = false;
-                for (var x = endX; x >= startX; x--)
-                {
-                    float[] row = map[startY];
-                    if (row[x] != target)
-                    {
-                        done = true;
-                        break;
-                    }
-                }
-                if (done)
-                {
-                    break;
-                }
-                yield return new Rectangle(startX, startY, endX, endY);
-            }
-            yield return new Rectangle(startX, startY, endX, endY);
-        }
-
         public static void AllegroMain()
         {
             Allegro.InstallSystem();
@@ -130,76 +23,198 @@ namespace SomePathingThing
             Font.Init();
             Ttf.Init();
             var font = Ttf.LoadFont("Arial.ttf", 12, TtfFlags.None);
-            Action<string> drawStatus = delegate(string status)
-            {
-                font.Draw(Display.Width / 2, Display.Height - 50, FontDrawFlags.AlignCentre, status);
-            };
-            var yellow = new Color(1, 1, 0);
-            var blue = new Color(0, 0, 1);
-            var green = new Color(0, 1, 0);
             var black = new Color(0, 0, 0);
-            var topLeft = new Rectangle(0, 0, 0, 0);
-            var topRight = new Rectangle(0, 0, 0, 0);
-            var bottomRight = new Rectangle(0, 0, 0, 0);
-            Action drawRectangles = delegate()
-            {
-                Primitives.DrawFilledRectangle(topLeft.X1, topLeft.Y1, topLeft.X2, topLeft.Y2, yellow);
-                Primitives.DrawFilledRectangle(topRight.X1, topRight.Y1, topRight.X2, topRight.Y2, blue);
-                Primitives.DrawFilledRectangle(bottomRight.X1, bottomRight.Y1, bottomRight.X2, bottomRight.Y2, green);
-            };
+            var gray = new Color(0.5f, 0.5f, 0.5f);
+            var yellow = new Color(1, 1, 0);
+            var red = new Color(1, 0, 0);
+            var random = new Random();
+            var visualization = true;
+            var keyboardState = new KeyboardState();
             using (var display = Display.Create(800, 600))
             {
                 var bitmap = Image.LoadBitmap("map.png");
                 Blender.Set(BlendOperation.Add, BlendMode.Alpha, BlendMode.InverseAlpha, new Color(1, 1, 1));
+                Display.Clear(black);
+                bitmap.Draw(0, 0, DrawFlags.None);
+                font.Draw(Display.Width / 2, Display.Height - 50, FontDrawFlags.AlignCentre, "Do you want visualization? (Y/N)");
+                Display.Flip();
+                keyboardState = new KeyboardState();
+                while (!(keyboardState.KeyDown(Key.Y) || keyboardState.KeyDown(Key.N)))
+                {
+                    Keyboard.GetState(ref keyboardState);
+                }
+                visualization = keyboardState.KeyDown(Key.Y);
                 var map = PathFinder.MakeMap(bitmap);
-                var query = from y in Enumerable.Range(0, map.Length)
-                    from x in Enumerable.Range(0, map[y].Length)
-                        let target = map[y][x]
-                        let width = map[y].Skip(x).TakeWhile(node => node == target).Count()
-                        let height = map.Skip(y).TakeWhile(row => row.Skip(x).Take(width).All(node => node == target)).Count()
-                        select new Rectangle(x, y, x + width, y + height);
-                var random = new Random();
-                foreach (var rectangle in query)
+                var height = map.GetLength(0);
+                var width = map.GetLength(1);
+                var zones = new List<Rectangle>();
+                while (true)
                 {
-                    var color = new Color((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble());
-                    Primitives.DrawFilledRectangle(rectangle.X1, rectangle.Y1, rectangle.X2, rectangle.Y2, color);
-                }
-                foreach (var candidate in TopLeftCandidate(map, 0, 0))
-                {
-                    topLeft = new Rectangle(candidate.X1, candidate.Y1, candidate.X2, candidate.Y2 + 1);
-                    Display.Clear(black);
-                    bitmap.Draw(0, 0, DrawFlags.None);
-                    drawRectangles();
-                    drawStatus("Searching top left...");
-                    Display.Flip();
-                    Thread.Sleep(20);
-                }
-                foreach (var candidate in TopRightCandidate(map, map[0].Length - 1, 0))
-                {
-                    topRight = new Rectangle(candidate.X1, candidate.Y1, candidate.X2 + 1, candidate.Y2);
-                    Display.Clear(black);
-                    bitmap.Draw(0, 0, DrawFlags.None);
-                    drawRectangles();
-                    drawStatus("Searching top right...");
-                    Display.Flip();
-                    Thread.Sleep(20);
-                }
-                foreach (var candidate in BottomRightCandidate(map, map[0].Length - 1, map.Length - 1))
-                {
-                    bottomRight = new Rectangle(candidate.X1, candidate.Y1, candidate.X2, candidate.Y2 + 1);
-                    Display.Clear(black);
-                    bitmap.Draw(0, 0, DrawFlags.None);
-                    drawRectangles();
-                    drawStatus("Searching bottom right...");
-                    Display.Flip();
-                    Thread.Sleep(20);
+                    Rectangle? biggestRectangle = null;
+                    for (var startY = 0; startY < height; startY++)
+                    {
+                        for (var startX = 0; startX < width; startX++)
+                        {
+                            var startNode = map[startY, startX];
+                            if (startNode.InGroup)
+                            {
+                                continue;
+                            }
+                            var value = startNode.Value;
+                            var endX = startX;
+                            for (; endX < width; endX++)
+                            {
+                                var node = map[startY, endX];
+                                if (node.InGroup || value != node.Value)
+                                {
+                                    break;
+                                }
+                            }
+                            if (biggestRectangle.HasValue)
+                            {
+                                var necessaryHeight = (int)(biggestRectangle.Value.GetArea() / ((float)endX - startX));
+                                var jumpY = startY + necessaryHeight;
+                                if (jumpY >= height || map[jumpY, startX].InGroup || value != map[jumpY, startX].Value)
+                                {
+                                    continue;
+                                }
+                            }
+                            var endY = startY;
+                            for (; endY < height; endY++)
+                            {
+                                for (var x = startX; x < endX; x++)
+                                {
+                                    var node = map[endY, x];
+                                    if (node.InGroup || value != node.Value)
+                                    {
+                                        goto foundY;
+                                    }
+                                }
+                            }
+                        foundY:
+                                if (visualization)
+                            {
+                                Keyboard.GetState(ref keyboardState);
+                                if (keyboardState.KeyDown(Key.Escape))
+                                {
+                                    return;
+                                }
+                                Display.Clear(black);
+                                bitmap.Draw(0, 0, DrawFlags.None);
+                                foreach (var zone in zones)
+                                {
+                                    Primitives.DrawFilledRectangle(zone.X1, zone.Y1, zone.X2, zone.Y2, gray);
+                                }
+                                if (biggestRectangle.HasValue)
+                                {
+                                    Primitives.DrawFilledRectangle(biggestRectangle.Value.X1,
+                                                                   biggestRectangle.Value.Y1,
+                                                                   biggestRectangle.Value.X2,
+                                                                   biggestRectangle.Value.Y2,
+                                                                   yellow);
+                                }
+                                Primitives.DrawFilledRectangle(startX, startY, endX, endY, red);
+                                Display.Flip();
+                            }
+                            var rectangle = new Rectangle(startX, startY, endX, endY);
+                            if (!biggestRectangle.HasValue || rectangle.GetArea() > biggestRectangle.Value.GetArea())
+                            {
+                                biggestRectangle = rectangle;
+                            }
+                        }
+                    }
+                    if (!biggestRectangle.HasValue)
+                    {
+                        break;
+                    }
+                    for (var y = biggestRectangle.Value.Y1; y < biggestRectangle.Value.Y2; y++)
+                    {
+                        for (var x = biggestRectangle.Value.X1; x < biggestRectangle.Value.X2; x++)
+                        {
+                            map[y, x].InGroup = true;
+                        }
+                    }
+                    zones.Add(biggestRectangle.Value);
                 }
                 Display.Clear(black);
                 bitmap.Draw(0, 0, DrawFlags.None);
-                drawRectangles();
-                drawStatus("Done");
+                foreach (var zone in zones)
+                {
+                    var color = new Color((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble());
+                    Primitives.DrawFilledRectangle(zone.X1, zone.Y1, zone.X2, zone.Y2, color);
+                }
+                font.Draw(Display.Width / 2, Display.Height - 50, FontDrawFlags.AlignCentre, zones.Count.ToString());
                 Display.Flip();
-                KeyboardState keyboardState = new KeyboardState();
+                keyboardState = new KeyboardState();
+                while (!(keyboardState.KeyDown(Key.Escape) || keyboardState.KeyDown(Key.Enter)))
+                {
+                    Keyboard.GetState(ref keyboardState);
+                }
+                if (keyboardState.KeyDown(Key.Escape))
+                {
+                    return;
+                }
+                var pathNodes = new List<PathNode>();
+                foreach (var zone in zones)
+                {
+                    var nodes = new PathNode[]
+                    {
+                        new PathNode(zone.X1, zone.Y1),
+                        new PathNode(zone.X1, zone.Y2),
+                        new PathNode(zone.X2, zone.Y1),
+                        new PathNode(zone.X2, zone.Y2)
+                    };
+                    nodes[0].Neighbors.AddRange(new PathNode[] { nodes[1], nodes[2], nodes[3] });
+                    nodes[1].Neighbors.AddRange(new PathNode[] { nodes[0], nodes[2], nodes[3] });
+                    nodes[2].Neighbors.AddRange(new PathNode[] { nodes[0], nodes[1], nodes[3] });
+                    nodes[3].Neighbors.AddRange(new PathNode[] { nodes[0], nodes[1], nodes[2] });
+                    pathNodes.AddRange(nodes);
+                }
+                var foundDuplicates = true;
+                while (foundDuplicates)
+                {
+                    foundDuplicates = false;
+                    for (var i = 0; i < pathNodes.Count; i++)
+                    {
+                        var node1 = pathNodes[i];
+                        for (var j = 0; j < pathNodes.Count;)
+                        {
+                            var node2 = pathNodes[j];
+                            if (!object.ReferenceEquals(node1, node2) && node1.X == node2.X && node1.Y == node2.Y)
+                            {
+                                node1.Neighbors.AddRange(node2.Neighbors);
+                                foreach (var neighbor in node2.Neighbors)
+                                {
+                                    for (var k = 0; k < neighbor.Neighbors.Count; k++)
+                                    {
+                                        if (object.ReferenceEquals(neighbor.Neighbors[k], node2))
+                                        {
+                                            neighbor.Neighbors[k] = node1;
+                                        }
+                                    }
+                                }
+                                pathNodes.RemoveAt(j);
+                                foundDuplicates = true;
+                            }
+                            else
+                            {
+                                j++;
+                            }
+                        }
+                    }
+                }
+                Display.Clear(black);
+                bitmap.Draw(0, 0, DrawFlags.None);
+                foreach (var node in pathNodes)
+                {
+                    foreach (var neighbor in node.Neighbors)
+                    {
+                        Primitives.DrawLine(node.X, node.Y, neighbor.X, neighbor.Y, red, 0);
+                    }
+                }
+                font.Draw(Display.Width / 2, Display.Height - 50, FontDrawFlags.AlignCentre, pathNodes.Count.ToString());
+                Display.Flip();
+                keyboardState = new KeyboardState();
                 while (!keyboardState.KeyDown(Key.Escape))
                 {
                     Keyboard.GetState(ref keyboardState);
