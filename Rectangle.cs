@@ -12,6 +12,11 @@ namespace SomePathingThing
             this.Y2 = y2;
         }
 
+        public int GetArea()
+        {
+            return Math.Abs(X2 - X1) * Math.Abs(Y2 - Y1);
+        }
+
         public readonly int X1;
         public readonly int Y1;
         public readonly int X2;
